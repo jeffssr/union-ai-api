@@ -2,7 +2,7 @@
 
 <p align="center">
 
-[![Docker Build](https://img.shields.io/docker/build/jeffssr/union-ai-api?style=flat-square)](https://hub.docker.com/r/jeffssr/union-ai-api)
+[![Docker Build](https://img.shields.io/docker/build/jeffssr1/union-ai-api?style=flat-square)](https://hub.docker.com/r/jeffssr1/union-ai-api)
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/jeffssr/union-ai-api?style=flat-square)](https://github.com/jeffssr/union-ai-api/stargazers)

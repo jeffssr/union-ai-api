@@ -8,7 +8,7 @@ on:
     branches: [ main ]
 
 env:
-  DOCKER_IMAGE: jeffssr/union-ai-api
+  DOCKER_IMAGE: jeffssr1/union-ai-api
   DOCKERHUB_REGISTRY: docker.io
 
 jobs:

@@ -1,0 +1,25 @@
+# Union AI API - Clean Docker Compose Configuration
+# 数据目录挂载到项目内的 data 文件夹（通过 .gitignore 排除，不会被 Git 跟踪）
+
+services:
+  union-ai-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.clean
+    container_name: union-ai-api
+    ports:
+      - "18080:8000"  # API 服务端口（外部访问 18080）
+      - "18501:8501"  # 管理后台端口（外部访问 18501）
+    volumes:
+      # 将数据挂载到项目内的 data 目录
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

@@ -2,7 +2,7 @@
 
 <p align="center">
 
-[![Docker Build]](https://img.shields.io/docker/build/union-ai-api/union-ai-api?style=flat-square)
+[![Docker Build](https://img.shields.io/docker/build/union-ai-api/union-ai-api?style=flat-square)]
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 

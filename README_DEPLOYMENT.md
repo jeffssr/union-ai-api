@@ -293,7 +293,7 @@ docker exec -it union-ai-api bash
 
 ## 📝 更新日志
 
-### v1.0.0 (2024)
+### v1.0.0 (2026)
 - ✅ 初始版本
 - ✅ Docker 容器化部署
 - ✅ 一键启动脚本

@@ -52,7 +52,7 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    st.caption("© 2024 AI Proxy")
+    st.caption("© 2026 AI Proxy")
 
 page = pages[st.session_state.current_page]
 

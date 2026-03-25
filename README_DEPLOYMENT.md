@@ -10,6 +10,7 @@
 - [系统要求](#系统要求)
 - [安装步骤](#安装步骤)
 - [使用方法](#使用方法)
+- [命令速查](#命令速查)
 - [常见问题](#常见问题)
 - [文件说明](#文件说明)
 
@@ -17,13 +18,13 @@
 
 ## 🎯 快速开始
 
-### 方式一：命令行启动（推荐）
+### 方式一：命令行启动（推荐 ⭐）
 
 ```bash
 # 1. 赋予执行权限
-chmod +x start.sh
+chmod +x start.sh stop.sh restart.sh status.sh clean.sh
 
-# 2. 一键启动
+# 2. 一键启动（首次自动构建，后续秒开）
 ./start.sh
 ```
 
@@ -79,9 +80,9 @@ docker --version
 cd /path/to/union-ai-api
 
 # 赋予脚本执行权限
-chmod +x start.sh stop.sh restart.sh status.sh
+chmod +x *.sh
 
-# 一键启动
+# 一键启动（首次构建，后续秒开）
 ./start.sh
 ```
 
@@ -91,7 +92,7 @@ chmod +x start.sh stop.sh restart.sh status.sh
 # 进入项目目录
 cd C:\path\to\union-ai-api
 
-# 启动服务
+# 启动服务（首次会自动构建镜像）
 docker-compose -f docker-compose.clean.yml up -d
 ```
 
@@ -113,36 +114,26 @@ docker-compose -f docker-compose.clean.yml up -d
 3. 在「API Key」页面生成 API 密钥
 4. 开始使用 API 服务
 
-### 2. 管理命令
-
-#### 查看服务状态
+### 2. 日常管理命令
 
 ```bash
-./status.sh
-```
+# 启动服务（首次构建，后续秒开）
+./start.sh
 
-#### 查看实时日志
-
-```bash
-docker logs -f union-ai-api
-```
-
-#### 重启服务
-
-```bash
-./restart.sh
-```
-
-#### 停止服务
-
-```bash
+# 停止服务（保留容器，下次秒开）
 ./stop.sh
-```
 
-#### 完全清理（保留数据）
+# 重启服务
+./restart.sh
 
-```bash
+# 查看详细状态
+./status.sh
+
+# 完全清理（删除容器和镜像，保留数据）
 ./clean.sh
+
+# 查看实时日志
+docker logs -f union-ai-api
 ```
 
 ### 3. 图形化启动器
@@ -157,6 +148,38 @@ python3 launcher.py
 - ✅ 实时状态监控
 - ✅ 日志查看
 - ✅ 快速打开浏览器
+
+---
+
+## 📋 命令速查
+
+### 脚本命令（推荐）
+
+| 命令 | 说明 | 速度 |
+|------|------|------|
+| `./start.sh` | 启动服务 | 首次：5-10分钟<br>后续：1-2秒 |
+| `./stop.sh` | 停止服务 | 1-2秒 |
+| `./restart.sh` | 重启服务 | 3-5秒 |
+| `./status.sh` | 查看状态 | 即时 |
+| `./clean.sh` | 完全清理 | 5-10秒 |
+
+### Docker Compose 命令
+
+| 命令 | 说明 | 特点 |
+|------|------|------|
+| `docker-compose -f docker-compose.clean.yml up -d` | 启动服务 | 首次构建镜像 |
+| `docker-compose -f docker-compose.clean.yml stop` | 停止服务 | 保留容器，秒开 |
+| `docker-compose -f docker-compose.clean.yml start` | 启动已停止的服务 | 秒开 |
+| `docker-compose -f docker-compose.clean.yml restart` | 重启服务 | 快速重启 |
+| `docker-compose -f docker-compose.clean.yml down` | 停止并删除容器 | 下次需重建 |
+
+### Docker Desktop 操作
+
+1. 打开 Docker Desktop 应用
+2. 在 Containers 中找到 `union-ai-api`
+3. 点击 ▶️ 启动 或 ⏹️ 停止
+
+**注意**：如果容器被删除（显示 "not found"），请使用 `./start.sh` 重新创建
 
 ---
 
@@ -193,11 +216,33 @@ python3 launcher.py
 chmod +x *.sh
 
 # 修复数据目录权限
-mkdir -p ../union-ai-data
-chmod 755 ../union-ai-data
+mkdir -p data
+chmod 755 data
 ```
 
-### Q4: 服务启动慢
+### Q4: 启动时报错 "no container found"
+
+**错误信息**: `no container found for project "union-ai-api"`
+
+**原因**: 之前使用了 `docker-compose down` 或 `clean.sh` 删除了容器
+
+**解决方案**:
+```bash
+# 直接运行 start.sh，会自动创建容器
+./start.sh
+```
+
+### Q5: 每次启动都要重新构建，很慢
+
+**原因**: 旧版 `start.sh` 使用了 `--no-cache` 强制重建
+
+**解决方案**: 使用新版脚本，已修复此问题：
+```bash
+# 首次启动会构建，后续秒开
+./start.sh
+```
+
+### Q6: 服务启动慢
 
 **原因**: 首次启动需要下载 Docker 镜像
 
@@ -205,7 +250,7 @@ chmod 755 ../union-ai-data
 - 耐心等待首次下载完成（约 5-10 分钟）
 - 后续启动会非常快（秒开）
 
-### Q5: 数据在哪里？
+### Q7: 数据在哪里？
 
 所有数据存储在 `./data` 目录（项目文件夹内），包括：
 - 数据库文件
@@ -218,6 +263,18 @@ chmod 755 ../union-ai-data
 - 删除项目时，请手动备份 `data` 目录以保留数据
 - 打包分发时，`data` 目录不会被包含（除非你手动添加）
 
+### Q8: 数据会丢失吗？
+
+不会。数据通过 Docker Volume 持久化存储：
+
+| 操作 | 容器 | 镜像 | 数据 |
+|------|------|------|------|
+| `./stop.sh` | 保留（停止） | 保留 | 保留 |
+| `./start.sh` | 启动 | 保留 | 保留 |
+| `./restart.sh` | 重启 | 保留 | 保留 |
+| `./clean.sh` | 删除 | 删除 | 保留 |
+| `docker-compose down` | 删除 | 保留 | 保留 |
+
 ---
 
 ## 📁 文件说明
@@ -228,11 +285,11 @@ chmod 755 ../union-ai-data
 union-ai-api/
 ├── docker-compose.clean.yml    # Docker Compose 配置
 ├── Dockerfile.clean            # Docker 镜像构建文件
-├── start.sh                    # 一键启动脚本
-├── stop.sh                     # 停止服务脚本
-├── restart.sh                  # 重启服务脚本
+├── start.sh                    # 启动脚本（⭐ 推荐）
+├── stop.sh                     # 停止脚本（保留容器）
+├── restart.sh                  # 重启脚本
 ├── status.sh                   # 状态检查脚本
-├── clean.sh                    # 清理脚本
+├── clean.sh                    # 完全清理脚本
 ├── launcher.py                 # 图形化启动器
 └── README_DEPLOYMENT.md        # 本文件
 ```
@@ -254,18 +311,18 @@ data/                           # 数据存储目录（自动生成，已被 .gi
 
 ```yaml
 ports:
-  - "自定义端口：18080"  # API 服务
-  - "自定义端口：18501"  # 管理后台
+  - "18080:8000"  # API 服务（修改前面的端口）
+  - "18501:8501"  # 管理后台（修改前面的端口）
 ```
 
 ### 数据备份
 
 ```bash
 # 备份数据
-cp -r data data.backup
+cp -r data data.backup.$(date +%Y%m%d)
 
 # 恢复数据
-cp -r data.backup data
+cp -r data.backup.20260101 data
 ```
 
 ### 查看容器信息
@@ -276,6 +333,9 @@ docker inspect union-ai-api
 
 # 进入容器
 docker exec -it union-ai-api bash
+
+# 查看资源使用
+docker stats union-ai-api
 ```
 
 ---
@@ -292,6 +352,13 @@ docker exec -it union-ai-api bash
 ---
 
 ## 📝 更新日志
+
+### v1.1.0 (2026-03-25)
+- ✅ 优化启动脚本，支持秒级启动
+- ✅ 新增 `stop.sh` 保留容器，下次秒开
+- ✅ 新增 `clean.sh` 完全清理脚本
+- ✅ 增强 `status.sh` 状态显示
+- ✅ 修复 Docker Desktop 启动问题
 
 ### v1.0.0 (2026)
 - ✅ 初始版本

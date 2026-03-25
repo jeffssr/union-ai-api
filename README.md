@@ -20,6 +20,25 @@
 - 📋 **调用日志** - 完整的请求日志和错误追踪
 - 🎨 **Web 管理后台** - 图形界面配置模型和查看数据
 - 🐳 **Docker 部署** - 开箱即用，一键部署
+- ⚡ **秒级启动** - 非首次启动只需 1-2 秒
+
+## 🎈 应用截图
+
+|   页面    | 截图示例                                                     |
+| :-------: | ------------------------------------------------------------ |
+| 数据概览  | ![](https://github.com/user-attachments/assets/a2f1dd04-96d1-475f-8f79-c2c79da3a749) |
+| 模型配置  | ![](https://github.com/user-attachments/assets/46c49eab-3cb5-4726-8237-7943520ae3b0) |
+| 模型配置2 | ![](https://github.com/user-attachments/assets/e1528325-0f00-4d54-a73f-02c91efe178c) |
+|  apikey   | ![](https://github.com/user-attachments/assets/3795b6a0-386b-4d49-850c-7335130ed049) |
+| 调用记录  | ![](https://github.com/user-attachments/assets/30a852ae-55a0-4e55-b6b2-b53ed4049425) |
+
+## 🔗 外部调用示例
+
+| 应用                      | 使用截图                                                     |
+| ------------------------- | ------------------------------------------------------------ |
+| Chatbox                   | ![](https://cdn.jsdelivr.net/gh/jeffssr/images/PixPin_2026-03-25_09-50-00.png) |
+| Chatbox                   | ![PixPin_2026-03-25_09-50-54](https://cdn.jsdelivr.net/gh/jeffssr/images/PixPin_2026-03-25_09-50-54.png) |
+| ClawX / openclaw 类似应用 | ![PixPin_2026-03-25_09-51-17](https://cdn.jsdelivr.net/gh/jeffssr/images/PixPin_2026-03-25_09-51-17.png) |
 
 ## 🎈 应用截图
 
@@ -33,14 +52,14 @@
 
 ## 🏁 快速开始
 
-### 方式一：Docker 部署（推荐）
+### 方式一：一键脚本启动（推荐 ⭐）
 
 ```bash
 # 1. 克隆或下载项目
 git clone https://github.com/jeffssr/union-ai-api.git
 cd union-ai-api
 
-# 2. 启动服务
+# 2. 一键启动（首次会自动构建，后续秒开）
 chmod +x start.sh
 ./start.sh
 
@@ -49,15 +68,49 @@ chmod +x start.sh
 # API 服务：http://localhost:18080
 ```
 
-### 方式二：使用 Docker Compose
+### 常用命令
+
+```bash
+# 启动服务（首次构建，后续秒开）
+./start.sh
+
+# 停止服务（保留容器，下次秒开）
+./stop.sh
+
+# 重启服务
+./restart.sh
+
+# 查看状态
+./status.sh
+
+# 完全清理（删除容器和镜像）
+./clean.sh
+
+# 查看日志
+docker logs -f union-ai-api
+```
+
+### 方式二：使用 Docker Compose 命令
 
 ```bash
 # 克隆项目
 git clone https://github.com/jeffssr/union-ai-api.git
 cd union-ai-api
 
-# 启动服务
+# 启动服务（首次会自动构建镜像）
 docker-compose -f docker-compose.clean.yml up -d
+
+# 停止服务（保留容器，下次秒开）
+docker-compose -f docker-compose.clean.yml stop
+
+# 启动已停止的服务（秒开）
+docker-compose -f docker-compose.clean.yml start
+
+# 重启服务
+docker-compose -f docker-compose.clean.yml restart
+
+# 完全停止并删除容器
+docker-compose -f docker-compose.clean.yml down
 
 # 查看日志
 docker logs -f union-ai-api
@@ -147,6 +200,52 @@ environment:
 
 **注意**：`data/` 目录已被 `.gitignore` 排除，不会被 Git 跟踪。
 
+## 🐳 Docker 命令速查
+
+### 快速管理（推荐）
+
+```bash
+# 启动服务（首次构建，后续秒开）
+./start.sh
+
+# 停止服务（保留容器，下次秒开）
+./stop.sh
+
+# 重启服务
+./restart.sh
+
+# 查看详细状态
+./status.sh
+
+# 完全清理（删除容器和镜像，保留数据）
+./clean.sh
+```
+
+### 原生 Docker 命令
+
+```bash
+# 启动服务
+docker-compose -f docker-compose.clean.yml up -d
+
+# 停止服务（保留容器）
+docker-compose -f docker-compose.clean.yml stop
+
+# 启动已停止的服务
+docker-compose -f docker-compose.clean.yml start
+
+# 重启服务
+docker-compose -f docker-compose.clean.yml restart
+
+# 完全停止并删除容器
+docker-compose -f docker-compose.clean.yml down
+
+# 查看日志
+docker logs -f union-ai-api
+
+# 进入容器
+docker exec -it union-ai-api bash
+```
+
 ## 📡 API 文档
 
 ### 兼容性
@@ -192,28 +291,6 @@ curl http://localhost:18080/health
 {"status":"healthy"}
 ```
 
-## 🐳 Docker 命令
-
-```bash
-# 启动服务
-docker-compose -f docker-compose.clean.yml up -d
-
-# 停止服务
-docker-compose -f docker-compose.clean.yml down
-
-# 重启服务
-docker-compose -f docker-compose.clean.yml restart
-
-# 查看状态
-./status.sh
-
-# 查看日志
-docker logs -f union-ai-api
-
-# 进入容器
-docker exec -it union-ai-api bash
-```
-
 ## 📁 项目结构
 
 ```
@@ -227,10 +304,11 @@ union-ai-api/
 ├── data/                    # 数据目录（.gitignore 排除）
 ├── Dockerfile.clean          # Docker 镜像配置
 ├── docker-compose.clean.yml # Docker Compose 配置
-├── start.sh                 # 启动脚本
-├── stop.sh                  # 停止脚本
+├── start.sh                 # 启动脚本（⭐ 推荐）
+├── stop.sh                  # 停止脚本（保留容器）
 ├── restart.sh               # 重启脚本
 ├── status.sh                # 状态检查
+├── clean.sh                 # 完全清理
 ├── launcher.py              # 图形化启动器
 ├── LICENSE                  # MIT 许可证
 ├── DISCLAIMER.md            # 免责声明

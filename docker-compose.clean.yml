@@ -1,8 +1,14 @@
 # Union AI API - Clean Docker Compose Configuration
 # 数据目录挂载到项目内的 data 文件夹（通过 .gitignore 排除，不会被 Git 跟踪）
+# 使用方式：
+#   ./start.sh  - 启动服务（首次构建，后续秒开）
+#   ./stop.sh   - 停止服务（保留容器）
+#   ./restart.sh - 重启服务
+#   ./clean.sh  - 完全清理（删除容器和镜像）
 
 services:
   union-ai-api:
+    image: union-ai-api:latest
     build:
       context: .
       dockerfile: Dockerfile.clean

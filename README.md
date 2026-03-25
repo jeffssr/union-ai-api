@@ -40,16 +40,6 @@
 | Chatbox                   | ![PixPin_2026-03-25_09-50-54](https://cdn.jsdelivr.net/gh/jeffssr/images/PixPin_2026-03-25_09-50-54.png) |
 | ClawX / openclaw 类似应用 | ![PixPin_2026-03-25_09-51-17](https://cdn.jsdelivr.net/gh/jeffssr/images/PixPin_2026-03-25_09-51-17.png) |
 
-## 🎈 应用截图
-
-| 页面 | 截图示例 |
-|------|------|
-| 数据概览 | <img width="1565" height="918" alt="image" src="https://github.com/user-attachments/assets/a2f1dd04-96d1-475f-8f79-c2c79da3a749" /> |
-| 模型配置 | <img width="1565" height="918" alt="image" src="https://github.com/user-attachments/assets/46c49eab-3cb5-4726-8237-7943520ae3b0" /> |
-| 模型配置2 | <img width="1565" height="918" alt="image" src="https://github.com/user-attachments/assets/e1528325-0f00-4d54-a73f-02c91efe178c" /> |
-| apikey | <img width="1565" height="918" alt="image" src="https://github.com/user-attachments/assets/3795b6a0-386b-4d49-850c-7335130ed049" /> |
-| 调用记录 | <img width="1565" height="918" alt="image" src="https://github.com/user-attachments/assets/30a852ae-55a0-4e55-b6b2-b53ed4049425" /> |
-
 ## 🏁 快速开始
 
 ### 方式一：一键脚本启动（推荐 ⭐）

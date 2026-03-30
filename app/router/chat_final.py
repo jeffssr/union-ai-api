@@ -6,6 +6,7 @@ import uuid
 import json
 import logging
 import httpx
+import asyncio
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Header, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -16,6 +17,85 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 BEIJING_TZ = timezone(timedelta(hours=8))
+
+# 全局HTTP客户端连接池
+_global_client: Optional[httpx.AsyncClient] = None
+
+# 速率限制配置
+MODEL_SWITCH_DELAY = 0.5  # 模型切换间隔（秒）
+MAX_RETRIES = 3  # 最大重试次数
+BASE_RETRY_DELAY = 1.0  # 基础重试延迟（秒）
+RATE_LIMIT_STATUS_CODES = {429}  # 速率限制HTTP状态码
+RATE_LIMIT_ERROR_CODES = {"limit_burst_rate", "rate_limit", "too_many_requests"}  # 限流错误码
+
+
+def get_global_client() -> httpx.AsyncClient:
+    """获取全局HTTP客户端（连接池复用）"""
+    global _global_client
+    if _global_client is None or _global_client.is_closed:
+        _global_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(60.0, connect=10.0),
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)
+        )
+    return _global_client
+
+
+async def close_global_client():
+    """关闭全局HTTP客户端"""
+    global _global_client
+    if _global_client and not _global_client.is_closed:
+        await _global_client.aclose()
+        _global_client = None
+
+
+def is_rate_limit_error(error_text: str, status_code: int) -> bool:
+    """检查是否为速率限制错误"""
+    if status_code in RATE_LIMIT_STATUS_CODES:
+        return True
+    error_lower = error_text.lower()
+    for code in RATE_LIMIT_ERROR_CODES:
+        if code in error_lower:
+            return True
+    return False
+
+
+async def exponential_backoff_retry(
+    operation,
+    max_retries: int = MAX_RETRIES,
+    base_delay: float = BASE_RETRY_DELAY,
+    operation_name: str = "operation"
+):
+    """
+    指数退避重试机制
+    遇到速率限制错误时，等待一段时间后重试
+    """
+    last_exception = None
+    
+    for attempt in range(max_retries):
+        try:
+            result = await operation()
+            # 检查结果是否包含速率限制错误
+            if isinstance(result, dict) and result.get("status") == "error":
+                error_message = result.get("error_message", "")
+                status_code = result.get("status_code", 0)
+                if is_rate_limit_error(error_message, status_code) and attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)  # 指数退避: 1, 2, 4秒
+                    logger.warning(f"{operation_name} 遇到速率限制，{delay}秒后重试 (第{attempt + 1}/{max_retries}次)")
+                    await asyncio.sleep(delay)
+                    continue
+            return result
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(f"{operation_name} 失败，{delay}秒后重试 (第{attempt + 1}/{max_retries}次): {e}")
+                await asyncio.sleep(delay)
+            else:
+                break
+    
+    if last_exception:
+        raise last_exception
+    return {"status": "error", "error_message": "Max retries exceeded"}
 
 def get_beijing_time():
     return datetime.now(BEIJING_TZ)
@@ -147,6 +227,10 @@ async def chat_completions(request: Request, authorization: Optional[str] = Head
                 else:
                     logger.warning(f"模型 {model_config['name']} 失败：{result.get('error_message')}")
                     last_error = result.get('error_message')
+                    # 如果不是最后一个模型，添加延迟避免突发请求
+                    if idx < len(models) - 1:
+                        logger.info(f"等待 {MODEL_SWITCH_DELAY} 秒后尝试下一个模型...")
+                        await asyncio.sleep(MODEL_SWITCH_DELAY)
                     continue
             else:
                 result = await forward_to_model(model_config, request_body, request_id, api_key_record)
@@ -156,6 +240,10 @@ async def chat_completions(request: Request, authorization: Optional[str] = Head
                 else:
                     logger.warning(f"模型 {model_config['name']} 失败：{result.get('error_message')}")
                     last_error = result.get('error_message')
+                    # 如果不是最后一个模型，添加延迟避免突发请求
+                    if idx < len(models) - 1:
+                        logger.info(f"等待 {MODEL_SWITCH_DELAY} 秒后尝试下一个模型...")
+                        await asyncio.sleep(MODEL_SWITCH_DELAY)
                     continue
 
         logger.error(f"所有模型都失败：{last_error}")
@@ -201,19 +289,19 @@ async def forward_stream(model_config: dict, request_body: dict, request_id: str
     logger.info(f"流式转发到：{api_url}, model: {target_model}")
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                api_url,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json=request_body
-            )
+        client = get_global_client()
+        response = await client.post(
+            api_url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json=request_body
+        )
 
-            logger.info(f"流式响应状态：{response.status_code}")
+        logger.info(f"流式响应状态：{response.status_code}")
 
-            if response.status_code == 200:
+        if response.status_code == 200:
                 # 用于记录实际的 tokens
                 actual_input_tokens = 0
                 actual_output_tokens = 0
@@ -294,26 +382,26 @@ async def forward_stream(model_config: dict, request_body: dict, request_id: str
                         }
                     )
                 }
-            else:
-                error_text = response.text
-                logger.error(f"流式 API 错误：{error_text[:500]}")
+        else:
+            error_text = response.text
+            logger.error(f"流式 API 错误：{error_text[:500]}")
 
-                create_call_log({
-                    "request_id": request_id,
-                    "api_key_id": api_key_record['key_id'],
-                    "api_key_name": api_key_record['name'],
-                    "model_config_id": config_id,
-                    "model_name": model_name,
-                    "status": "failed",
-                    "error_message": error_text[:1000],
-                    "error_code": str(response.status_code)
-                })
+            create_call_log({
+                "request_id": request_id,
+                "api_key_id": api_key_record['key_id'],
+                "api_key_name": api_key_record['name'],
+                "model_config_id": config_id,
+                "model_name": model_name,
+                "status": "failed",
+                "error_message": error_text[:1000],
+                "error_code": str(response.status_code)
+            })
 
-                return {
-                    "status": "error",
-                    "status_code": response.status_code,
-                    "error_message": error_text[:1000]
-                }
+            return {
+                "status": "error",
+                "status_code": response.status_code,
+                "error_message": error_text[:1000]
+            }
 
     except httpx.TimeoutException:
         logger.error("流式请求超时")
@@ -400,60 +488,30 @@ async def forward_to_model(model_config: dict, request_body: dict, request_id: s
     logger.info(f"转发到：{api_url}, model: {target_model}")
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                api_url,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json=request_body
-            )
+        client = get_global_client()
+        response = await client.post(
+            api_url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json=request_body
+        )
 
-            logger.info(f"响应状态：{response.status_code}")
+        logger.info(f"响应状态：{response.status_code}")
 
-            if response.status_code == 200:
-                response_data = response.json()
+        if response.status_code == 200:
+            response_data = response.json()
 
-                response_data['model'] = model_name
+            response_data['model'] = model_name
 
-                if 'usage' in response_data:
-                    input_tokens = response_data['usage'].get('prompt_tokens', 0)
-                    output_tokens = response_data['usage'].get('completion_tokens', 0)
-                    total_tokens = input_tokens + output_tokens
+            if 'usage' in response_data:
+                input_tokens = response_data['usage'].get('prompt_tokens', 0)
+                output_tokens = response_data['usage'].get('completion_tokens', 0)
+                total_tokens = input_tokens + output_tokens
 
-                    logger.info(f"更新 usage: tokens={total_tokens}, calls=1")
-                    update_daily_usage(config_id, total_tokens, 1)
-
-                    create_call_log({
-                        "request_id": request_id,
-                        "api_key_id": api_key_record['key_id'],
-                        "api_key_name": api_key_record['name'],
-                        "model_config_id": config_id,
-                        "model_name": model_name,
-                        "input_tokens": input_tokens,
-                        "output_tokens": output_tokens,
-                        "status": "success"
-                    })
-                else:
-                    create_call_log({
-                        "request_id": request_id,
-                        "api_key_id": api_key_record['key_id'],
-                        "api_key_name": api_key_record['name'],
-                        "model_config_id": config_id,
-                        "model_name": model_name,
-                        "input_tokens": 0,
-                        "output_tokens": 0,
-                        "status": "success"
-                    })
-
-                return {
-                    "status": "success",
-                    "response": response_data
-                }
-            else:
-                error_text = response.text
-                logger.error(f"API 错误：{error_text[:500]}")
+                logger.info(f"更新 usage: tokens={total_tokens}, calls=1")
+                update_daily_usage(config_id, total_tokens, 1)
 
                 create_call_log({
                     "request_id": request_id,
@@ -461,16 +519,46 @@ async def forward_to_model(model_config: dict, request_body: dict, request_id: s
                     "api_key_name": api_key_record['name'],
                     "model_config_id": config_id,
                     "model_name": model_name,
-                    "status": "failed",
-                    "error_message": error_text[:1000],
-                    "error_code": str(response.status_code)
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "status": "success"
+                })
+            else:
+                create_call_log({
+                    "request_id": request_id,
+                    "api_key_id": api_key_record['key_id'],
+                    "api_key_name": api_key_record['name'],
+                    "model_config_id": config_id,
+                    "model_name": model_name,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "status": "success"
                 })
 
-                return {
-                    "status": "error",
-                    "status_code": response.status_code,
-                    "error_message": error_text[:1000]
-                }
+            return {
+                "status": "success",
+                "response": response_data
+            }
+        else:
+            error_text = response.text
+            logger.error(f"API 错误：{error_text[:500]}")
+
+            create_call_log({
+                "request_id": request_id,
+                "api_key_id": api_key_record['key_id'],
+                "api_key_name": api_key_record['name'],
+                "model_config_id": config_id,
+                "model_name": model_name,
+                "status": "failed",
+                "error_message": error_text[:1000],
+                "error_code": str(response.status_code)
+            })
+
+            return {
+                "status": "error",
+                "status_code": response.status_code,
+                "error_message": error_text[:1000]
+            }
                 
     except httpx.TimeoutException:
         logger.error("请求超时")

@@ -1,9 +1,17 @@
 import sqlite3
+import os
 from datetime import datetime, date, timezone, timedelta
 from typing import Optional, List
 from contextlib import contextmanager
 
-DATABASE_PATH = "/app/data/proxy.db"
+# 根据环境选择数据库路径
+if os.name == 'nt':  # Windows
+    DATABASE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "proxy.db")
+else:  # Linux/Mac/Docker
+    DATABASE_PATH = "/app/data/proxy.db"
+
+# 确保数据目录存在
+os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
 
 BEIJING_TZ = timezone(timedelta(hours=8))
 
@@ -221,7 +229,7 @@ def get_all_models() -> List[dict]:
 def create_model(model_data: dict) -> str:
     import uuid
     config_id = str(uuid.uuid4())[:8]
-    created_at = datetime.now(BEIING_TZ).strftime('%Y-%m-%d %H:%M:%S')
+    created_at = datetime.now(BEIJING_TZ).strftime('%Y-%m-%d %H:%M:%S')
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -285,7 +293,7 @@ def create_api_key(name: str) -> dict:
     import uuid
     key_id = str(uuid.uuid4())[:8]
     api_key = f"sk-{secrets.token_urlsafe(32)}"
-    created_at = datetime.now(BEIING_TZ).strftime('%Y-%m-%d %H:%M:%S')
+    created_at = datetime.now(BEIJING_TZ).strftime('%Y-%m-%d %H:%M:%S')
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""

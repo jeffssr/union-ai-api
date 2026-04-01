@@ -19,6 +19,9 @@
 - 🔑 **API Key 管理** - 生成和管理客户端访问密钥
 - 📋 **调用日志** - 完整的请求日志和错误追踪
 - 🎨 **Web 管理后台** - 图形界面配置模型和查看数据
+- 👤 **用户认证** - 支持注册、登录、密码修改功能
+- 📋 **配置复制** - 一键复制模型配置，快速创建新配置
+- 📥📤 **导入导出** - 支持 Excel 格式导入导出模型配置
 - 🐳 **Docker 部署** - 开箱即用，一键部署
 - ⚡ **秒级启动** - 非首次启动只需 1-2 秒
 
@@ -26,6 +29,7 @@
 
 |   页面    | 截图示例                                                     |
 | :-------: | ------------------------------------------------------------ |
+|   注册    | ![image-20260401113749208](https://cdn.jsdelivr.net/gh/jeffssr/images/image-20260401113749208.png) |
 | 数据概览  | ![](https://github.com/user-attachments/assets/a2f1dd04-96d1-475f-8f79-c2c79da3a749) |
 | 模型配置  | ![](https://github.com/user-attachments/assets/46c49eab-3cb5-4726-8237-7943520ae3b0) |
 | 模型配置2 | ![](https://github.com/user-attachments/assets/e1528325-0f00-4d54-a73f-02c91efe178c) |
@@ -131,27 +135,106 @@ streamlit run streamlit_app/home.py --server.port 18501
 
 ## 📖 使用指南
 
-### 1. 配置模型
+### 1. 首次使用（注册管理员账号）
+
+首次打开管理后台时，系统会自动检测是否需要注册：
 
 1. 打开管理后台：http://localhost:18501
-2. 进入「模型配置」页面
-3. 点击「添加新模型」
-4. 填写配置信息：
+2. 如果是首次使用，会显示**注册页面**
+3. 输入用户名和密码（密码长度至少4位）
+4. 点击注册，成功后自动跳转到登录页面
+5. 使用注册的账号登录
+
+> **注意**：注册信息存储在本地数据库中，每个部署实例只需注册一次。
+
+### 2. 用户管理
+
+#### 修改密码
+登录后，点击右上角的用户名，展开「🔐 修改密码」选项：
+1. 输入当前密码
+2. 输入新密码（至少4位）
+3. 确认新密码
+4. 点击修改密码
+
+#### 退出登录
+点击右上角的「🚪 退出登录」按钮即可退出。
+
+#### 重置注册数据（重新测试注册流程）
+
+如需清除已注册的用户数据，重新测试注册流程：
+
+**Linux/macOS：**
+```bash
+# 停止容器
+docker stop union-ai-api
+
+# 删除数据文件
+rm -rf ./data/*
+
+# 重新启动容器
+docker start union-ai-api
+```
+
+**Windows（PowerShell）：**
+```powershell
+# 停止容器
+docker stop union-ai-api
+
+# 删除数据文件
+Remove-Item -Path .\data\* -Recurse -Force
+
+# 重新启动容器
+docker start union-ai-api
+```
+
+> ⚠️ **警告**：此操作会删除所有数据，包括用户账号、模型配置、API Keys 和调用记录。
+
+### 3. 配置模型
+
+1. 进入「模型配置」页面
+2. 点击「添加新模型」
+3. 填写配置信息：
    - 模型名称（如：GPT-4）
    - API 地址（如：https://api.openai.com/v1/chat/completions）
    - API Key（你的 API 密钥）
-   - Model ID（如：gpt-4）
+   - Model ID（如：gpt-4，选填）
    - 每日 Token 限制
    - 每日调用次数限制
    - 优先级（数字越大越优先）
 
-### 2. 生成 API Key
+#### 复制配置
+在已有模型配置卡片中，点击「📋 复制配置」按钮，可以复制该配置到新模型表单，方便快速创建相似配置。
+
+#### 导入导出配置
+
+**导出配置：**
+1. 在模型配置页面，点击「📥 导出配置」按钮
+2. 系统会生成包含所有模型配置的 Excel 文件
+3. 下载并保存到本地
+
+**导入配置：**
+1. 点击「📤 导入配置」展开导入区域
+2. 选择要导入的 Excel 文件（.xlsx 或 .xls）
+3. 点击「开始导入」
+4. 系统会自动识别中英文列名，导入成功后刷新页面查看
+
+> 支持的列名（中英文均可）：
+> - 模型名称 / name
+> - API地址 / api_url
+> - API密钥 / api_key
+> - Model ID / model_id
+> - 每日Token上限 / daily_token_limit
+> - 每日调用上限 / daily_call_limit
+> - 优先级 / priority
+
+### 4. 生成 API Key
 
 1. 进入「API Key」页面
 2. 点击「生成新 API Key」
-3. 复制生成的密钥
+3. 输入 Key 名称（如：我的应用）
+4. 复制生成的密钥（**注意**：密钥只显示一次，请妥善保存）
 
-### 3. 调用 API
+### 5. 调用 API
 
 ```bash
 # 使用生成的 API Key 调用
@@ -163,6 +246,13 @@ curl -X POST http://localhost:18080/v1/chat/completions \
     "messages": [{"role": "user", "content": "你好"}]
   }'
 ```
+
+### 6. 数据概览
+
+首页以卡片形式展示各模型的使用情况：
+- 🟢 绿色圆点：模型可用
+- ⚫ 灰色圆点：模型不可用（达到限额或未启用）
+- 按优先级从高到低排序
 
 ## 🔧 配置说明
 
@@ -186,9 +276,19 @@ environment:
 ### 数据存储
 
 所有数据存储在 `./data` 目录：
-- `proxy.db` - SQLite 数据库
+- `proxy.db` - SQLite 数据库（包含用户、模型配置、API Keys、调用记录等）
 
 **注意**：`data/` 目录已被 `.gitignore` 排除，不会被 Git 跟踪。
+
+### 数据备份
+
+```bash
+# 备份数据
+cp -r data data.backup.$(date +%Y%m%d)
+
+# 恢复数据
+cp -r data.backup.20260101 data
+```
 
 ## 🐳 Docker 命令速查
 
@@ -234,6 +334,9 @@ docker logs -f union-ai-api
 
 # 进入容器
 docker exec -it union-ai-api bash
+
+# 查看资源使用
+docker stats union-ai-api
 ```
 
 ## 📡 API 文档
@@ -291,6 +394,8 @@ union-ai-api/
 │   ├── database.py          # 数据库配置
 │   └── main.py              # 应用入口
 ├── streamlit_app/           # 管理后台
+│   ├── home.py              # 主页面
+│   └── db.py                # 数据库操作
 ├── data/                    # 数据目录（.gitignore 排除）
 ├── Dockerfile.clean          # Docker 镜像配置
 ├── docker-compose.clean.yml # Docker Compose 配置

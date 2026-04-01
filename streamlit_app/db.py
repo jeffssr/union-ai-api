@@ -1,7 +1,17 @@
 import sqlite3
+import hashlib
+import secrets
+import os
 from datetime import date
 
-DATABASE_PATH = "/app/data/proxy.db"
+# 根据环境选择数据库路径
+if os.name == 'nt':  # Windows
+    DATABASE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "proxy.db")
+else:  # Linux/Mac/Docker
+    DATABASE_PATH = "/app/data/proxy.db"
+
+# 确保数据目录存在
+os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
@@ -81,10 +91,78 @@ def init_db():
     if 'total_calls' not in daily_cols:
         cursor.execute("ALTER TABLE daily_usage ADD COLUMN total_calls INTEGER DEFAULT 0")
 
+    # 用户表
+    cursor.execute("""CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
     conn.commit()
     conn.close()
 
-init_db()
+def hash_password(password, salt=None):
+    """对密码进行哈希处理"""
+    if salt is None:
+        salt = secrets.token_hex(16)
+    pwdhash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
+    return pwdhash.hex(), salt
+
+def verify_password(password, password_hash, salt):
+    """验证密码"""
+    pwdhash, _ = hash_password(password, salt)
+    return pwdhash == password_hash
+
+def create_user(username, password):
+    """创建用户"""
+    password_hash, salt = hash_password(password)
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)",
+            (username, password_hash, salt)
+        )
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
+def get_user(username):
+    """获取用户信息"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def update_user_password(username, new_password):
+    """更新用户密码"""
+    password_hash, salt = hash_password(new_password)
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE users SET password_hash = ?, salt = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
+        (password_hash, salt, username)
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+def has_users():
+    """检查是否已有用户"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) as count FROM users")
+    row = cursor.fetchone()
+    conn.close()
+    return row['count'] > 0
 
 def get_auto_switch_status():
     conn = get_db_connection()
@@ -193,3 +271,5 @@ def get_daily_stats():
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+init_db()

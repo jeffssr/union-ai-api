@@ -14,6 +14,7 @@
 ## ✨ 特性
 
 - 🌐 **统一 API 接口** - 一个接口调用多个 AI 模型
+- 🆕 **Responses API 支持** - 兼容 Codex v0.80.0+ 和 OpenAI SDK v1.60+
 - 🔄 **自动切换模型** - 主模型失败时自动切换备用模型
 - 📊 **用量统计** - 实时监控 API 调用和 Token 使用
 - 🔑 **API Key 管理** - 生成和管理客户端访问密钥
@@ -43,6 +44,7 @@
 | Chatbox                   | ![](https://cdn.jsdelivr.net/gh/jeffssr/images/PixPin_2026-03-25_09-50-00.png) |
 | Chatbox                   | ![PixPin_2026-03-25_09-50-54](https://cdn.jsdelivr.net/gh/jeffssr/images/PixPin_2026-03-25_09-50-54.png) |
 | ClawX / openclaw 类似应用 | ![PixPin_2026-03-25_09-51-17](https://cdn.jsdelivr.net/gh/jeffssr/images/PixPin_2026-03-25_09-51-17.png) |
+| Codex CLI                 | `export OPENAI_BASE_URL=http://localhost:18080 && codex` |
 
 ## 🏁 快速开始
 
@@ -208,12 +210,12 @@ docker start union-ai-api
 #### 导入导出配置
 
 **导出配置：**
-1. 在模型配置页面，点击「📥 导出配置」按钮
+1. 在模型配置页面，点击「📤 导出配置」按钮
 2. 系统会生成包含所有模型配置的 Excel 文件
 3. 下载并保存到本地
 
 **导入配置：**
-1. 点击「📤 导入配置」展开导入区域
+1. 点击「📥 导入配置」展开导入区域
 2. 选择要导入的 Excel 文件（.xlsx 或 .xls）
 3. 点击「开始导入」
 4. 系统会自动识别中英文列名，导入成功后刷新页面查看
@@ -343,15 +345,19 @@ docker stats union-ai-api
 
 ### 兼容性
 
-本 API 兼容 OpenAI 接口格式，支持大多数 OpenAI 客户端。
+本 API 兼容 OpenAI 接口格式，支持大多数 OpenAI 客户端。同时支持 **OpenAI Responses API**（Codex v0.80.0+ 使用的接口）。
 
-### 端点
+### 支持的端点
 
-```
-POST /v1/chat/completions
-```
+| 端点 | 说明 | 适用场景 |
+|------|------|----------|
+| `POST /v1/chat/completions` | Chat Completions API | 通用 OpenAI 客户端 |
+| `POST /v1/responses` | Responses API | Codex v0.80.0+、OpenAI SDK v1.60+ |
+| `GET /health` | 健康检查 | 服务状态监控 |
 
-### 请求示例
+### 1. Chat Completions API
+
+适用于大多数 OpenAI 兼容客户端。
 
 ```python
 import requests
@@ -372,6 +378,72 @@ data = {
 response = requests.post(url, headers=headers, json=data)
 print(response.json())
 ```
+
+### 2. Responses API（Codex / OpenAI SDK 新版）
+
+适用于 Codex v0.80.0+ 或 OpenAI SDK v1.60+。
+
+#### 配置说明
+
+```python
+from openai import OpenAI
+
+# 配置客户端
+client = OpenAI(
+    base_url="http://localhost:18080",  # 本地服务地址
+    api_key="your-api-key-from-web-ui"   # 从管理后台生成的 API Key
+)
+
+# 非流式调用
+response = client.responses.create(
+    model="glm-4",  # 你在管理后台配置的模型名称
+    input="你好，请介绍一下自己"
+)
+print(response.output_text)
+
+# 流式调用
+stream = client.responses.create(
+    model="glm-4",
+    input="你好",
+    stream=True
+)
+for event in stream:
+    if event.type == "response.output_text.delta":
+        print(event.delta, end="")
+```
+
+#### 各客户端配置示例
+
+**Codex CLI:**
+```bash
+# 设置环境变量
+export OPENAI_BASE_URL="http://localhost:18080"
+export OPENAI_API_KEY="your-api-key-from-web-ui"
+
+# 使用 Codex
+codex
+```
+
+**Cursor:**
+1. 打开设置 → OpenAI API
+2. Base URL: `http://localhost:18080/v1`
+3. API Key: 从管理后台生成的 Key
+
+**Claude Code / OpenAI SDK:**
+```python
+import os
+os.environ["OPENAI_BASE_URL"] = "http://localhost:18080"
+os.environ["OPENAI_API_KEY"] = "your-api-key-from-web-ui"
+
+from openai import OpenAI
+client = OpenAI()
+```
+
+**Chatbox / LobeChat 等客户端:**
+- API 类型: OpenAI
+- API 地址: `http://localhost:18080/v1`
+- API Key: 从管理后台生成的 Key
+- 模型: 填写你在管理后台配置的模型名称
 
 ### 健康检查
 

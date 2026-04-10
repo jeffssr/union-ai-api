@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import time
 import io
-from datetime import date
+from datetime import date, datetime, timedelta
 from streamlit_app.db import (
     get_daily_stats,
     get_all_models,
@@ -21,9 +21,11 @@ from streamlit_app.db import (
     has_users,
     verify_password
 )
+import hashlib
+import base64
 
 st.set_page_config(
-    page_title="AI 代理管理后台",
+    page_title="Union-AI-API",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -105,6 +107,40 @@ if "copy_model_data" not in st.session_state:
 if "show_add_model" not in st.session_state:
     st.session_state.show_add_model = False
 
+def generate_auth_token(username):
+    """生成认证 token"""
+    timestamp = str(int(datetime.now().timestamp()))
+    token_data = f"{username}:{timestamp}"
+    token_hash = hashlib.sha256(f"{token_data}:union_ai_secret".encode()).hexdigest()[:16]
+    auth_token = f"{token_data}:{token_hash}"
+    return base64.b64encode(auth_token.encode()).decode()
+
+def verify_auth_token(token_b64):
+    """验证认证 token"""
+    if not token_b64:
+        return None
+    try:
+        auth_token = base64.b64decode(token_b64.encode()).decode()
+        parts = auth_token.split(":")
+        if len(parts) != 3:
+            return None
+        username, timestamp, token_hash = parts
+        # 验证token是否过期（7天）
+        token_time = datetime.fromtimestamp(int(timestamp))
+        if datetime.now() - token_time > timedelta(days=7):
+            return None
+        # 验证hash
+        expected_hash = hashlib.sha256(f"{username}:{timestamp}:union_ai_secret".encode()).hexdigest()[:16]
+        if token_hash != expected_hash:
+            return None
+        # 验证用户是否存在
+        user = get_user(username)
+        if user:
+            return username
+        return None
+    except:
+        return None
+
 def login_user(username, password):
     """用户登录验证"""
     user = get_user(username)
@@ -116,13 +152,21 @@ def logout():
     """退出登录"""
     st.session_state.is_logged_in = False
     st.session_state.username = None
+    # 清除所有认证相关的 query params 和 cookie
+    st.query_params.clear()
+    st.markdown("""
+    <script>
+    document.cookie = "union_ai_auth=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    sessionStorage.removeItem('union_ai_auth');
+    </script>
+    """, unsafe_allow_html=True)
     st.rerun()
 
 def show_login_page():
     """显示登录页面"""
     # 居中显示标题
     st.markdown("""
-        <h1 style='text-align: center;'>🤖 AI 代理管理后台</h1>
+        <h1 style='text-align: center;'>🤖 Union-AI-API</h1>
     """, unsafe_allow_html=True)
     
     # 检查是否已有用户
@@ -143,6 +187,17 @@ def show_login_page():
                 elif login_user(username, password):
                     st.session_state.is_logged_in = True
                     st.session_state.username = username
+                    # 设置 cookie 和 query param
+                    auth_token = generate_auth_token(username)
+                    expires_date = (datetime.now() + timedelta(days=7)).strftime("%a, %d %b %Y %H:%M:%S GMT")
+                    st.markdown(f"""
+                    <script>
+                    document.cookie = "union_ai_auth={auth_token}; expires={expires_date}; path=/; SameSite=Lax";
+                    sessionStorage.setItem('union_ai_auth', '{auth_token}');
+                    </script>
+                    """, unsafe_allow_html=True)
+                    # 同时设置 query param 作为备份
+                    st.query_params["auth"] = auth_token
                     st.success("登录成功！")
                     time.sleep(0.5)
                     st.rerun()
@@ -153,7 +208,7 @@ def show_register_page():
     """显示注册页面"""
     # 居中显示标题
     st.markdown("""
-        <h1 style='text-align: center;'>🤖 AI 代理管理后台</h1>
+        <h1 style='text-align: center;'>🤖 Union-AI-API</h1>
     """, unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -212,7 +267,6 @@ def export_models_to_excel():
         return None
     
     df = pd.DataFrame(models)
-    # 选择要导出的列并重命名
     export_columns = ['name', 'api_url', 'api_key', 'model_id', 'daily_token_limit', 
                       'daily_call_limit', 'priority', 'is_active', 'is_default_model']
     df_export = df[export_columns].copy()
@@ -229,7 +283,6 @@ def import_models_from_excel(uploaded_file):
     """从Excel导入模型配置"""
     try:
         df = pd.read_excel(uploaded_file)
-        # 尝试识别列名（支持中文和英文）
         column_mapping = {}
         expected_columns = {
             'name': ['模型名称', 'name', 'Name'],
@@ -276,10 +329,7 @@ def import_models_from_excel(uploaded_file):
 
 def render_model_cards(stats):
     """渲染模型卡片列表"""
-    # 按优先级排序
     sorted_stats = sorted(stats, key=lambda x: x['priority'], reverse=True)
-    
-    # 每行显示3个卡片
     cols_per_row = 3
     for i in range(0, len(sorted_stats), cols_per_row):
         cols = st.columns(cols_per_row)
@@ -313,6 +363,15 @@ def render_model_cards(stats):
                         </div>
                     """, unsafe_allow_html=True)
 
+# 页面加载时检查认证状态（通过 query params）
+if not st.session_state.is_logged_in:
+    auth_param = st.query_params.get("auth")
+    if auth_param:
+        verified_user = verify_auth_token(auth_param)
+        if verified_user:
+            st.session_state.is_logged_in = True
+            st.session_state.username = verified_user
+
 # 主程序
 if not st.session_state.is_logged_in:
     if st.session_state.show_register or not has_users():
@@ -332,19 +391,15 @@ else:
         st.title("🤖 union-ai-api")
         st.divider()
         
-        # 用户信息
         st.markdown(f"**👤 {st.session_state.username}**")
         
-        # 修改密码
         show_change_password()
         
-        # 退出登录
         if st.button("🚪 退出登录", use_container_width=True):
             logout()
         
         st.divider()
         
-        # 导航菜单
         for page_name in pages.keys():
             if st.button(page_name, use_container_width=True, 
                         type="primary" if st.session_state.current_page == page_name else "secondary"):
@@ -364,7 +419,6 @@ else:
         if not stats:
             st.info("暂无模型配置，请前往「模型配置」添加模型")
         else:
-            # 使用卡片式布局
             render_model_cards(stats)
             
             st.divider()
@@ -392,23 +446,22 @@ else:
         
         models = get_all_models()
         
-        # 导入导出按钮
         col1, col2, col3 = st.columns([1, 1, 3])
         with col1:
             excel_data = export_models_to_excel()
             if excel_data:
                 st.download_button(
-                    label="📥 导出配置",
+                    label="📤 导出配置",
                     data=excel_data,
                     file_name=f"models_export_{date.today().isoformat()}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
             else:
-                st.button("📥 导出配置", disabled=True, use_container_width=True)
-        
+                st.button("📤 导出配置", disabled=True, use_container_width=True)
+
         with col2:
-            with st.expander("📤 导入配置"):
+            with st.expander("📥 导入配置"):
                 st.markdown("### 导入模型配置")
                 uploaded_file = st.file_uploader("选择Excel文件", type=['xlsx', 'xls'], key="import_file")
                 if uploaded_file is not None:
@@ -429,23 +482,20 @@ else:
         st.subheader("⚙️ 全局设置")
         auto_switch_global = st.checkbox(
             "✅ 启用自动切换模型",
-            value=get_auto_switch_status(),
-            help="开启后：系统按优先级自动切换所有启用的模型 | 关闭后：所有请求固定使用下方选择的默认模型"
+            value=get_auto_switch_status()
         )
         if auto_switch_global != get_auto_switch_status():
             set_auto_switch_status(auto_switch_global)
             st.success("✅ 设置已保存")
             time.sleep(0.5)
             st.rerun()
-        st.caption("💡 提示：关闭自动切换后，请确保下方已选择默认模型，否则所有请求将失败")
+        st.caption("💡 提示：开启后：系统按优先级自动切换所有启用的模型 | 关闭后：所有请求固定使用下方选择的默认模型，请确保下方已选择默认模型，否则所有请求将失败")
         
         st.divider()
         
         st.subheader("📋 模型列表")
         
-        # 添加新模型
         with st.expander("➕ 添加新模型", expanded=st.session_state.show_add_model):
-            # 如果有复制数据，预填充表单
             copy_data = st.session_state.copy_model_data
             
             with st.form("add_model_form", clear_on_submit=True):
@@ -503,7 +553,6 @@ else:
                 with st.expander(f"**{model['name']}** (优先级：{model['priority']}{status_badge})"):
                     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
                     with col_btn1:
-                        # 复制配置按钮
                         if st.button("📋 复制配置", key=f"copy_{model['config_id']}"):
                             st.session_state.copy_model_data = {
                                 'name': model['name'] + ' (复制)',

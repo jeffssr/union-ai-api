@@ -262,7 +262,7 @@ def get_daily_stats():
     today = date.today()
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""SELECT m.config_id, m.name, m.model_id, m.api_url, m.daily_token_limit, m.daily_call_limit, m.is_default_model, m.is_active,
+    cursor.execute("""SELECT m.config_id, m.name, m.model_id, m.api_url, m.daily_token_limit, m.daily_call_limit, m.is_default_model, m.is_active, m.priority,
             COALESCE(d.total_tokens, 0) as used_tokens,
             COALESCE(d.total_calls, 0) as used_calls
         FROM models m

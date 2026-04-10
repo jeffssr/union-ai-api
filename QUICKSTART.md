@@ -59,6 +59,20 @@ python3 launcher.py
 - **API 服务**: http://localhost:18080
 - **管理后台**: http://localhost:18501
 
+## 🔌 客户端配置
+
+### 通用 OpenAI 客户端
+```
+Base URL: http://localhost:18080/v1
+API Key: 从管理后台生成的 Key
+```
+
+### Codex / OpenAI SDK v1.60+
+```bash
+export OPENAI_BASE_URL="http://localhost:18080"
+export OPENAI_API_KEY="your-api-key-from-web-ui"
+```
+
 ---
 
 ## 📂 数据存储

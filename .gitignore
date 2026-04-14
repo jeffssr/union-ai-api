@@ -48,6 +48,12 @@ htmlcov/
 .pytest_cache/
 .tox/
 
+# Worktrees
+.worktrees/
+
+# Superpowers
+.superpowers/
+
 # Temporary files
 *.tmp
 *.bak

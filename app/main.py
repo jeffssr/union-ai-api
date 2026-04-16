@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from app.database import init_database
 from app.router.chat_final import router as chat_router
 from app.router.responses_api import router as responses_router, responses_api
+from app.router.admin import admin_router
 import logging
 
 # 配置日志级别为 INFO
@@ -34,6 +35,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(chat_router)
 app.include_router(responses_router)
+app.include_router(admin_router)
 
 # 添加直接响应 /responses 的路由（兼容 Codex 等客户端）
 @app.post("/responses")

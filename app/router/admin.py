@@ -358,3 +358,100 @@ async def set_auto_switch(
         raise HTTPException(status_code=400, detail="enabled 为必填字段")
     set_auto_switch_status(bool(enabled))
     return {"message": "设置成功", "enabled": bool(enabled)}
+
+
+# ========== Excel 导入导出端点 ==========
+
+# 中英文列名映射
+COLUMN_MAPPING = {
+    'name': ['模型名称', 'name', 'Name'],
+    'api_url': ['API地址', 'api_url', 'API URL', 'api url'],
+    'api_key': ['API密钥', 'api_key', 'API Key', 'api key'],
+    'model_id': ['Model ID', 'model_id', 'model id', 'ModelId'],
+    'daily_token_limit': ['每日Token上限', 'daily_token_limit', 'Token Limit'],
+    'daily_call_limit': ['每日调用上限', 'daily_call_limit', 'Call Limit'],
+    'priority': ['优先级', 'priority', 'Priority']
+}
+
+EXPORT_COLUMNS = ['name', 'api_url', 'api_key', 'model_id', 'daily_token_limit',
+                  'daily_call_limit', 'priority', 'is_active', 'is_default_model']
+EXPORT_COLUMN_NAMES = ['模型名称', 'API地址', 'API密钥', 'Model ID', '每日Token上限',
+                       '每日调用上限', '优先级', '是否启用', '是否默认']
+
+
+@admin_router.get("/config/export-excel")
+async def export_excel(current_user: dict = Depends(get_current_user)):
+    """导出模型配置为 Excel 文件"""
+    models = get_all_models()
+    if not models:
+        raise HTTPException(status_code=404, detail="无模型配置可导出")
+    df = pd.DataFrame(models)
+    df_export = df[EXPORT_COLUMNS].copy()
+    df_export.columns = EXPORT_COLUMN_NAMES
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_export.to_excel(writer, index=False, sheet_name='模型配置')
+    output.seek(0)
+
+    today = date_type.today().isoformat()
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=models_export_{today}.xlsx"}
+    )
+
+
+@admin_router.post("/config/import-excel")
+async def import_excel(
+    current_user: dict = Depends(get_current_user),
+    file: UploadFile = File(...)
+):
+    """导入 Excel 批量创建模型"""
+    # 校验文件类型
+    filename = file.filename or ""
+    if not (filename.endswith('.xlsx') or filename.endswith('.xls')):
+        raise HTTPException(status_code=400, detail="仅支持 xlsx/xls 格式文件")
+
+    content = await file.read()
+    df = pd.read_excel(io.BytesIO(content))
+
+    # 构建列名映射
+    col_map = {}
+    for key, possible_names in COLUMN_MAPPING.items():
+        for col in df.columns:
+            if col in possible_names:
+                col_map[key] = col
+                break
+
+    # 必须列检查
+    missing = [k for k in ('name', 'api_url', 'api_key') if k not in col_map]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Excel 文件缺少必要的列（{', '.join(missing)}）"
+        )
+
+    success_count = 0
+    for _, row in df.iterrows():
+        try:
+            name = str(row.get(col_map['name'], '')).strip()
+            api_url = str(row.get(col_map['api_url'], '')).strip()
+            api_key = str(row.get(col_map['api_key'], '')).strip()
+            if not name or not api_url or not api_key:
+                continue
+            model_data = {
+                "name": name,
+                "api_url": api_url,
+                "api_key": api_key,
+                "model_id": str(row.get(col_map.get('model_id', ''), '')),
+                "daily_token_limit": int(row.get(col_map.get('daily_token_limit', 'daily_token_limit'), 100000)),
+                "daily_call_limit": int(row.get(col_map.get('daily_call_limit', 'daily_call_limit'), 1000)),
+                "priority": int(row.get(col_map.get('priority', 'priority'), 0)),
+            }
+            db_create_model(model_data)
+            success_count += 1
+        except Exception:
+            continue
+
+    return {"message": "导入成功", "count": success_count}

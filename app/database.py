@@ -1,4 +1,6 @@
 import sqlite3
+import hashlib
+import secrets
 import os
 from datetime import datetime, date, timezone, timedelta
 from typing import Optional, List
@@ -18,6 +20,7 @@ BEIJING_TZ = timezone(timedelta(hours=8))
 def get_db_connection():
     conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 @contextmanager
@@ -114,8 +117,81 @@ def init_database():
     if 'total_calls' not in existing_cols:
         cursor.execute("ALTER TABLE daily_usage ADD COLUMN total_calls INTEGER DEFAULT 0")
 
+    # 用户表（管理员认证）
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            salt TEXT NOT NULL,
+            created_at TEXT,
+            updated_at TEXT
+        )
+    """)
+
     conn.commit()
     conn.close()
+
+
+# ========== 认证函数 ==========
+
+def hash_password(password: str, salt: str = None) -> tuple:
+    """对密码进行 pbkdf2_hmac 哈希处理"""
+    if salt is None:
+        salt = secrets.token_hex(16)
+    pwdhash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
+    return pwdhash.hex(), salt
+
+def verify_password(password: str, password_hash: str, salt: str) -> bool:
+    """验证密码是否匹配"""
+    pwdhash, _ = hash_password(password, salt)
+    return pwdhash == password_hash
+
+def create_user(username: str, password: str) -> bool:
+    """创建新用户，用户名重复时返回 False"""
+    password_hash, salt = hash_password(password)
+    created_at = datetime.now(BEIJING_TZ).strftime('%Y-%m-%d %H:%M:%S')
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO users (username, password_hash, salt, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                (username, password_hash, salt, created_at, created_at)
+            )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+def get_user(username: str) -> Optional[dict]:
+    """根据用户名查询用户信息"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def update_user_password(username: str, new_password: str) -> bool:
+    """更新用户密码"""
+    password_hash, salt = hash_password(new_password)
+    updated_at = datetime.now(BEIJING_TZ).strftime('%Y-%m-%d %H:%M:%S')
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE users SET password_hash = ?, salt = ?, updated_at = ? WHERE username = ?",
+            (password_hash, salt, updated_at, username)
+        )
+        return True
+
+def has_users() -> bool:
+    """检查是否已存在用户"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as count FROM users")
+        row = cursor.fetchone()
+        return row['count'] > 0
+
+
+# ========== 业务函数 ==========
 
 def get_auto_switch_status() -> bool:
     with get_db() as conn:

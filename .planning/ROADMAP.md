@@ -30,12 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. FastAPI 能正确提供 React 构建产物的静态文件服务（catch-all 路由不与 /v1/* API 路由冲突）
   4. 未认证请求访问管理端点时返回 401，已认证请求在 Cookie 有效期内保持登录状态
   5. 首次使用（数据库无用户时）register 端点可用，有用户后 register 被禁用
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Admin API 路由骨架 + 认证端点
-- [ ] 01-02: 模型/Key/统计/配置 CRUD 端点
-- [ ] 01-03: 静态文件服务 + SPA catch-all 路由
+- [ ] 01-01-PLAN.md — Admin API 路由骨架 + 认证端点（users 表 + login/register/logout/me/change-password）
+- [ ] 01-02-PLAN.md — 模型/Key/统计/配置 CRUD 端点（14 个管理端点）
+- [ ] 01-03-PLAN.md — 静态文件服务 + SPA catch-all 路由
 
 ### Phase 2: 前端骨架 + 设计系统
 **Goal**: 前端项目基础建立，DESIGN.md 所有设计 Token 映射到 Tailwind 配置，布局组件和登录/注册页面可用
@@ -111,7 +111,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Admin API 基础设施 | 0/3 | Not started | - |
+| 1. Admin API 基础设施 | 0/3 | Planned | - |
 | 2. 前端骨架 + 设计系统 | 0/4 | Not started | - |
 | 3. 核心 CRUD 页面 | 0/3 | Not started | - |
 | 4. 数据页面 + 批量操作 | 0/2 | Not started | - |

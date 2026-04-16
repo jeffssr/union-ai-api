@@ -110,23 +110,56 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 ~ AUTH-05 | Phase 1 | Pending |
-| API-01 ~ API-08 | Phase 1 | Pending |
-| DEPLOY-01, DEPLOY-05 | Phase 1 | Pending |
-| LAYOUT-01, LAYOUT-02 | Phase 2 | Pending |
-| DESIGN-01 ~ DESIGN-07 | Phase 2 | Pending |
-| MODEL-01 ~ MODEL-07 | Phase 3 | Pending |
-| KEY-01 ~ KEY-03 | Phase 3 | Pending |
-| STAT-01 ~ STAT-02 | Phase 3 | Pending |
-| STAT-03 ~ STAT-05 | Phase 4 | Pending |
-| CONF-01 ~ CONF-02 | Phase 4 | Pending |
-| DEPLOY-02 ~ DEPLOY-04 | Phase 5 | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| API-01 | Phase 1 | Pending |
+| API-02 | Phase 1 | Pending |
+| API-03 | Phase 1 | Pending |
+| API-04 | Phase 1 | Pending |
+| API-05 | Phase 1 | Pending |
+| API-06 | Phase 1 | Pending |
+| API-07 | Phase 1 | Pending |
+| API-08 | Phase 1 | Pending |
+| DEPLOY-01 | Phase 1 | Pending |
+| DEPLOY-05 | Phase 1 | Pending |
+| LAYOUT-01 | Phase 2 | Pending |
+| LAYOUT-02 | Phase 2 | Pending |
+| DESIGN-01 | Phase 2 | Pending |
+| DESIGN-02 | Phase 2 | Pending |
+| DESIGN-03 | Phase 2 | Pending |
+| DESIGN-04 | Phase 2 | Pending |
+| DESIGN-05 | Phase 2 | Pending |
+| DESIGN-06 | Phase 2 | Pending |
+| DESIGN-07 | Phase 2 | Pending |
+| MODEL-01 | Phase 3 | Pending |
+| MODEL-02 | Phase 3 | Pending |
+| MODEL-03 | Phase 3 | Pending |
+| MODEL-04 | Phase 3 | Pending |
+| MODEL-05 | Phase 3 | Pending |
+| MODEL-06 | Phase 3 | Pending |
+| MODEL-07 | Phase 3 | Pending |
+| KEY-01 | Phase 3 | Pending |
+| KEY-02 | Phase 3 | Pending |
+| KEY-03 | Phase 3 | Pending |
+| STAT-01 | Phase 3 | Pending |
+| STAT-02 | Phase 3 | Pending |
+| STAT-03 | Phase 4 | Pending |
+| STAT-04 | Phase 4 | Pending |
+| STAT-05 | Phase 4 | Pending |
+| CONF-01 | Phase 4 | Pending |
+| CONF-02 | Phase 4 | Pending |
+| DEPLOY-02 | Phase 5 | Pending |
+| DEPLOY-03 | Phase 5 | Pending |
+| DEPLOY-04 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 37 total
-- Mapped to phases: 37
-- Unmapped: 0 ✓
+- v1 requirements: 44 total (AUTH:5, MODEL:7, KEY:3, STAT:5, CONF:2, LAYOUT:2, DESIGN:7, API:8, DEPLOY:5)
+- Mapped to phases: 44
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-16*
-*Last updated: 2026-04-16 after initial definition*
+*Last updated: 2026-04-16 after roadmap creation*

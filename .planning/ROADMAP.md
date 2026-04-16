@@ -33,9 +33,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Admin API 路由骨架 + 认证端点（users 表 + login/register/logout/me/change-password）
-- [ ] 01-02-PLAN.md — 模型/Key/统计/配置 CRUD 端点（14 个管理端点）
-- [ ] 01-03-PLAN.md — 静态文件服务 + SPA catch-all 路由
+- [x] 01-01-PLAN.md — Admin API 路由骨架 + 认证端点（users 表 + login/register/logout/me/change-password）
+- [x] 01-02-PLAN.md — 模型/Key/统计/配置 CRUD 端点（14 个管理端点）
+- [x] 01-03-PLAN.md — 静态文件服务 + SPA catch-all 路由
 
 ### Phase 2: 前端骨架 + 设计系统
 **Goal**: 前端项目基础建立，DESIGN.md 所有设计 Token 映射到 Tailwind 配置，布局组件和登录/注册页面可用
